@@ -19,3 +19,17 @@ Pipeline ETL de vendas de e-commerce com DataOps, agendado via GitHub Actions.
 ├── reports/ # gráficos gerados em PNG
 ├── README.md # documentação do projeto
 └── .gitignore # arquivos ignorados pelo Git
+
+## Estrutura de Pastas
+
+.
+├── .github/ # Workflows do GitHub Actions
+│ └── workflows/ # Definições de cron jobs
+├── data/
+│ ├── raw/ # Dados brutos (.csv) baixados automaticamente
+│ └── processed/ # Dados processados (.csv de métricas)
+├── scripts/ # Scripts Python (extract, transform, load, report)
+│ └── logs/ # Logs de execução (opcional)
+├── reports/ # Gráficos gerados (.png)
+├── README.md # Documentação do projeto
+└── .gitignore # Arquivos e pastas ignorados pelo Git
