@@ -1,50 +1,93 @@
 # .github/workflows/load_report.yml
 name: ETL - Load & Report
 
-# Agenda: 05:00 UTC todo dia = 02:00 BRT
 on:
   schedule:
-    - cron: '0 5 * * *'
+    - cron: '2 5 * * *'        # 02:00 BRT
   workflow_dispatch:
 
 jobs:
   load_report:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Vinicios@212121
+          POSTGRES_DB: ecommerce_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="PGPASSWORD='Vinicios@212121' pg_isready -U postgres -d ecommerce_db"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      # Mesmo DATABASE_URL do outro workflow
+      DATABASE_URL: postgresql://postgres:Vinicios%40212121@localhost:5432/ecommerce_db
+
     steps:
-    - name: Checkout do repositório
-      uses: actions/checkout@v3
+      - name: Checkout do repositório
+        uses: actions/checkout@v3
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Instalar dependências
-      run: |
-        python -m pip install --upgrade pip
-        pip install pandas sqlalchemy psycopg2-binary matplotlib python-dotenv
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas sqlalchemy psycopg2-binary matplotlib python-dotenv
 
-    - name: Executar Load
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      run: |
-        python scripts/load.py
+      - name: Esperar Postgres ficar pronto
+        run: |
+          echo "Aguardando o PostgreSQL iniciar…"
+          until PGPASSWORD='Vinicios@212121' pg_isready -h localhost -p 5432 -U postgres; do
+            sleep 1
+          done
 
-    - name: Executar Report
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      run: |
-        python scripts/report.py
+      - name: Criar schemas e tabelas no Postgres
+        run: |
+          PGPASSWORD='Vinicios@212121' psql \
+            -h localhost -U postgres -d ecommerce_db \
+            -c "CREATE SCHEMA IF NOT EXISTS staging; \
+                CREATE TABLE IF NOT EXISTS staging.online_retail ( \
+                  InvoiceNo   VARCHAR(50), \
+                  StockCode   VARCHAR(50), \
+                  Description TEXT, \
+                  Quantity    INTEGER, \
+                  InvoiceDate TIMESTAMP, \
+                  UnitPrice   NUMERIC, \
+                  CustomerID  VARCHAR(50), \
+                  Country     VARCHAR(100) \
+                ); \
+                CREATE SCHEMA IF NOT EXISTS analytics; \
+                CREATE TABLE IF NOT EXISTS analytics.sales_summary ( \
+                  country         VARCHAR(100), \
+                  invoice_date    DATE, \
+                  total_quantity  INTEGER, \
+                  total_revenue   NUMERIC, \
+                  ticket_medio    NUMERIC, \
+                  PRIMARY KEY (country, invoice_date) \
+                );"
 
-    - name: Commit e Push dos resultados
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add data/processed/*.csv reports/*.png
-        if ! git diff --cached --quiet; then
-          git commit -m "Atualização automática: métricas e relatório"
-          git push
-        else
-          echo "Sem mudanças nos outputs."
-        fi
+      - name: Executar Load (gerar métricas)
+        run: python scripts/load.py
+
+      - name: Executar Report (gerar gráficos/reports)
+        run: python scripts/report.py
+
+      - name: Commit e push dos outputs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/processed/*.csv reports/*.png
+          git commit -m "Add processed data and reports [skip ci]" || echo "No changes to commit"
+          git push origin main
+
