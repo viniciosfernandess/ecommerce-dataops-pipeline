@@ -1,14 +1,32 @@
-# .github/workflows/extract_transform.yml
 name: ETL - Extract & Transform
 
 on:
   schedule:
-    - cron: '0 3 * * *'        # 00:00 BRT
-  workflow_dispatch:          # permite disparo manual
+    - cron: '0 3 * * *'  # 00:00 BRT
+  workflow_dispatch:
 
 jobs:
   extract_transform:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Vinicios%40212121   # mesma senha codificada que no secret
+          POSTGRES_DB: ecommerce_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d ecommerce_db"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      # Aponta sua conexão para o serviço Postgres
+      DATABASE_URL: postgresql://postgres:Vinicios%40212121@localhost:5432/ecommerce_db
 
     steps:
       - name: Checkout do repositório
@@ -24,16 +42,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas sqlalchemy psycopg2-binary requests python-dotenv
 
-      # ==== Passo de DEBUG ====
-      - name: Debug — listar estrutura de diretórios
+      - name: Esperar Postgres ficar pronto
         run: |
-          echo "PWD: $(pwd)"
-          ls -R .
+          echo "Aguardando o PostgreSQL iniciar…"
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            sleep 1
+          done
 
       - name: Executar Extract
         run: python scripts/extract.py
 
       - name: Executar Transform
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python scripts/transform.py
