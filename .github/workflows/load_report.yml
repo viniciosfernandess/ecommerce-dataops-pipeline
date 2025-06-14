@@ -32,6 +32,9 @@ jobs:
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v3
+        with:
+          persist-credentials: true  # permite push com GITHUB_TOKEN
+          fetch-depth: 0             # traz todo o histórico, se necessário
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -90,4 +93,3 @@ jobs:
           git add data/processed/*.csv reports/*.png
           git commit -m "Add processed data and reports [skip ci]" || echo "No changes to commit"
           git push origin main
-
