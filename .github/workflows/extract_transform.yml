@@ -14,18 +14,19 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: Vinicios%40212121   # mesma senha codificada que no secret
+          # Senha literal que o container vai usar (com @)
+          POSTGRES_PASSWORD: Vinicios@212121
           POSTGRES_DB: ecommerce_db
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d ecommerce_db"
+          --health-cmd="PGPASSWORD='Vinicios@212121' pg_isready -U postgres -d ecommerce_db"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=5
 
+    # Aqui você dá ao seu código a URL já com %40 no lugar do @
     env:
-      # Aponta sua conexão para o serviço Postgres
       DATABASE_URL: postgresql://postgres:Vinicios%40212121@localhost:5432/ecommerce_db
 
     steps:
@@ -45,7 +46,7 @@ jobs:
       - name: Esperar Postgres ficar pronto
         run: |
           echo "Aguardando o PostgreSQL iniciar…"
-          until pg_isready -h localhost -p 5432 -U postgres; do
+          until PGPASSWORD='Vinicios@212121' pg_isready -h localhost -p 5432 -U postgres; do
             sleep 1
           done
 
@@ -54,3 +55,4 @@ jobs:
 
       - name: Executar Transform
         run: python scripts/transform.py
+
