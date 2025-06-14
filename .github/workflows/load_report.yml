@@ -1,6 +1,10 @@
 # .github/workflows/load_report.yml
 name: ETL - Load & Report
 
+# Permissões para permitir ao GITHUB_TOKEN push no repositório
+permissions:
+  contents: write
+
 on:
   schedule:
     - cron: '2 5 * * *'        # 02:00 BRT
@@ -26,15 +30,14 @@ jobs:
           --health-retries=5
 
     env:
-      # Mesmo DATABASE_URL do outro workflow
       DATABASE_URL: postgresql://postgres:Vinicios%40212121@localhost:5432/ecommerce_db
 
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v3
         with:
-          persist-credentials: true  # permite push com GITHUB_TOKEN
-          fetch-depth: 0             # traz todo o histórico, se necessário
+          persist-credentials: true  # mantém GITHUB_TOKEN para push
+          fetch-depth: 0             # baixa histórico completo
 
       - name: Setup Python
         uses: actions/setup-python@v4
