@@ -1,9 +1,10 @@
+# .github/workflows/extract_transform.yml
 name: ETL - Extract & Transform
 
 on:
   schedule:
-    - cron: '0 3 * * *'
-  workflow_dispatch:
+    - cron: '0 3 * * *'        # 00:00 BRT
+  workflow_dispatch:          # permite disparo manual
 
 jobs:
   extract_transform:
@@ -48,16 +49,36 @@ jobs:
             sleep 1
           done
 
-      - name: Criar schemas no Postgres
+      - name: Criar schemas e tabelas no Postgres
         run: |
           PGPASSWORD='Vinicios@212121' psql \
             -h localhost -U postgres -d ecommerce_db \
-            -c "CREATE SCHEMA IF NOT EXISTS staging; CREATE SCHEMA IF NOT EXISTS analytics;"
+            -c "CREATE SCHEMA IF NOT EXISTS staging; \
+                CREATE TABLE IF NOT EXISTS staging.online_retail ( \
+                  InvoiceNo   VARCHAR(50), \
+                  StockCode   VARCHAR(50), \
+                  Description TEXT, \
+                  Quantity    INTEGER, \
+                  InvoiceDate TIMESTAMP, \
+                  UnitPrice   NUMERIC, \
+                  CustomerID  VARCHAR(50), \
+                  Country     VARCHAR(100) \
+                ); \
+                CREATE SCHEMA IF NOT EXISTS analytics; \
+                CREATE TABLE IF NOT EXISTS analytics.sales_summary ( \
+                  country         VARCHAR(100), \
+                  invoice_date    DATE, \
+                  total_quantity  INTEGER, \
+                  total_revenue   NUMERIC, \
+                  ticket_medio    NUMERIC, \
+                  PRIMARY KEY (country, invoice_date) \
+                );"
 
       - name: Executar Extract
         run: python scripts/extract.py
 
       - name: Executar Transform
         run: python scripts/transform.py
+
 
 
