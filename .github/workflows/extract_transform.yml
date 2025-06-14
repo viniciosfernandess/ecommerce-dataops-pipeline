@@ -2,7 +2,7 @@ name: ETL - Extract & Transform
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # 00:00 BRT
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,6 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
-          # Senha literal que o container vai usar (com @)
           POSTGRES_PASSWORD: Vinicios@212121
           POSTGRES_DB: ecommerce_db
         ports:
@@ -25,7 +24,6 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
-    # Aqui você dá ao seu código a URL já com %40 no lugar do @
     env:
       DATABASE_URL: postgresql://postgres:Vinicios%40212121@localhost:5432/ecommerce_db
 
@@ -50,9 +48,16 @@ jobs:
             sleep 1
           done
 
+      - name: Criar schemas no Postgres
+        run: |
+          PGPASSWORD='Vinicios@212121' psql \
+            -h localhost -U postgres -d ecommerce_db \
+            -c "CREATE SCHEMA IF NOT EXISTS staging; CREATE SCHEMA IF NOT EXISTS analytics;"
+
       - name: Executar Extract
         run: python scripts/extract.py
 
       - name: Executar Transform
         run: python scripts/transform.py
+
 
